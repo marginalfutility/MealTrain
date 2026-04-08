@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meal Train</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  /* ── CONFIG NOTE ─────────────────────────────────────────────────────────────
+     1. Sign up for a free account at https://jsonbin.io
+     2. Create a new bin with this initial JSON:  {"slots": [], "signups": []}
+     3. Copy your Bin ID and Master Key into the CONFIG block below
+     4. Set ADMIN_PASSWORD to whatever you want
+     5. Edit SLOTS_CONFIG to set your desired dates
+  ──────────────────────────────────────────────────────────────────────────── */
+
+  :root {
+    --cream: #faf8f3;
+    --ink: #1c1a16;
+    --ink-muted: #6b6760;
+    --ink-faint: #b0ada6;
+    --border: #e2ddd6;
+    --border-hover: #c8c3ba;
+    --green-bg: #edf5e1;
+    --green-text: #2d5a1b;
+    --green-border: #b8d98a;
+    --red-bg: #fdf0ee;
+    --red-text: #8b2e22;
+    --red-border: #f0b9b2;
+    --amber-bg: #fef8ec;
+    --amber-text: #7a4f0a;
+    --accent: #4a7c3f;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 660px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+
+  /* ── HEADER ── */
+  .header { text-align: center; margin-bottom: 2.5rem; }
+  .header-icon { font-size: 36px; display: block; margin-bottom: 0.75rem; }
+  .header h1 {
+    font-family: 'Lora', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+  .header p { font-size: 14px; color: var(--ink-muted); max-width: 420px; margin: 0 auto; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    font-weight: 500;
+    margin: 2rem 0 0.75rem;
+  }
+
+  /* ── SLOT CARDS ── */
+  .slots { display: flex; flex-direction: column; gap: 8px; }
+
+  .slot-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: border-color 0.15s;
+  }
+  .slot-card:hover { border-color: var(--border-hover); }
+  .slot-card.is-claimed { background: #fafaf8; }
+  .slot-card.is-closed { background: #f7f6f3; opacity: 0.7; }
+
+  .slot-date { min-width: 52px; text-align: center; flex-shrink: 0; }
+  .slot-date .num {
+    font-family: 'Lora', serif;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .slot-date .mon {
+    font-size: 11px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  .slot-vline { width: 1px; height: 38px; background: var(--border); flex-shrink: 0; }
+
+  .slot-body { flex: 1; min-width: 0; }
+  .slot-body .slot-day { font-size: 13px; color: var(--ink-muted); }
+  .slot-body .slot-meal { font-size: 15px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot-body .slot-by { font-size: 13px; color: var(--ink-muted); font-style: italic; }
+
+  .slot-action { flex-shrink: 0; }
+
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+  .badge-claimed { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); }
+  .badge-closed  { background: var(--red-bg);   color: var(--red-text);   border: 1px solid var(--red-border); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-hover);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #f0ece4; border-color: var(--ink-faint); }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: #3a6330; border-color: #3a6330; }
+  .btn-danger { background: var(--red-bg); color: var(--red-text); border-color: var(--red-border); }
+  .btn-danger:hover { background: #f9e0dc; }
+  .btn-sm { font-size: 12px; padding: 5px 11px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 26, 22, 0.45);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    width: 100%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Lora', serif;
+    font-size: 20px;
+    font-weight: 400;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .modal .modal-sub { font-size: 13px; color: var(--ink-muted); margin-bottom: 1.25rem; }
+
+  /* ── FORM ── */
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 13px; color: var(--ink-muted); margin-bottom: 5px; }
+  .form-group input, .form-group textarea {
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 9px 12px;
+    border: 1px solid var(--border-hover);
+    border-radius: var(--radius-sm);
+    background: var(--cream);
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group textarea:focus { border-color: var(--accent); background: #fff; }
+  .form-group textarea { resize: none; height: 70px; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+
+  .modal-actions { display: flex; gap: 8px; margin-top: 1.25rem; }
+  .modal-actions button { flex: 1; }
+
+  .error-msg { font-size: 13px; color: var(--red-text); margin-top: 0.5rem; display: none; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── ADMIN ── */
+  .admin-nav {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.5rem;
+  }
+  .admin-bar {
+    background: var(--amber-bg);
+    border: 1px solid #e8c97a;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--amber-text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  .admin-bar span { flex: 1; font-weight: 500; }
+
+  .admin-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+  .admin-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    font-weight: 500;
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .admin-table td {
+    font-size: 13px;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink);
+    vertical-align: top;
+  }
+  .admin-table td.muted { color: var(--ink-muted); }
+  .admin-table tr:last-child td { border-bottom: none; }
+
+  /* ── LOADING ── */
+  .loading { text-align: center; padding: 2rem; color: var(--ink-muted); font-size: 14px; }
+
+  /* ── ADMIN LOGIN ── */
+  .admin-login { max-width: 320px; margin: 3rem auto; }
+  .admin-login h2 { font-family: 'Lora', serif; font-weight: 400; font-size: 22px; margin-bottom: 1rem; }
+
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; gap: 0; }
+    .header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     CONFIGURATION  — edit these values before deploying
+════════════════════════════════════════════════════════════ -->
+<script>
+const CONFIG = {
+  // JSONbin.io settings — sign up free at https://jsonbin.io
+  JSONBIN_BIN_ID:    '69d6a93d36566621a8909e2f',
+  JSONBIN_API_KEY:   '$2a$10$a1A/enJclTjWmXGL0Puuv.wdbXkwTmRuFX4W27/U68jOzFiZdRQ3m',
+
+  // Admin password (you'll be asked for this when you click "Admin")
+  ADMIN_PASSWORD:    'changeme',
+
+
+  // ── EMAIL NOTIFICATIONS (EmailJS) ──────────────────────────────────────────
+  // Sign up free at https://emailjs.com (200 emails/month free)
+  // Setup steps:
+  //   1. Create account → Email Services → Connect Gmail → copy Service ID
+  //   2. Email Templates → New Template → copy Template ID
+  //      In the template body, use these variables:
+  //        {{to_email}}  {{signup_name}}  {{signup_date}}
+  //        {{signup_meal}}  {{signup_email}}  {{signup_cell}}  {{signup_note}}
+  //      Set the "To email" field to: {{to_email}}
+  //      Set Subject to: New meal signup — {{signup_date}}
+  //   3. Account → copy your Public Key
+  // Leave EMAILJS_SERVICE_ID as '' to disable notifications.
+  EMAILJS_SERVICE_ID:   'service_wycltab',   // e.g. 'service_abc123'
+  EMAILJS_TEMPLATE_ID:  'template_4bl4f5n',   // e.g. 'template_xyz789'
+  EMAILJS_PUBLIC_KEY:   'gLIJTwz_-5e9nYPo6',   // e.g. 'AbCdEfGhIjKlMnOpQr'
+  NOTIFY_EMAIL:         'shmarley2030@gmail.com',   // your email, e.g. 'you@gmail.com'
+  // ───────────────────────────────────────────────────────────────────────────
+  // Meal train details shown in the header
+  FAMILY_NAME:       'Niral, Krietta & Faye',
+  TAGLINE:           'Our baby is arriving soon! If you\'d like to bring us a meal, pick an open date below. We\'re so grateful.',
+
+  // Dates to offer — format: [year, month (0-indexed), day]
+  // 0 = January, 3 = April, 4 = May, etc.
+  SLOTS_CONFIG: [
+    [2026, 3, 25],
+    [2026, 3, 26],
+    [2026, 3, 27],
+    [2026, 3, 28],
+    [2026, 3, 29],
+    [2026, 3, 30],
+    [2026, 4,  1],
+    [2026, 4,  2],
+    [2026, 4,  3],
+    [2026, 4,  4],
+    [2026, 4,  5],
+    [2026, 4,  6],
+    [2026, 4,  7],
+    [2026, 4,  8],
+    [2026, 4,  9],
+    [2026, 4, 10],
+    [2026, 4, 11],
+    [2026, 4, 12],
+    [2026, 4, 13],
+    [2026, 4, 14],
+    [2026, 4, 15],
+    [2026, 4, 16],
+    [2026, 4, 17],
+    [2026, 4, 18],
+    [2026, 4, 19],
+    [2026, 4, 20],
+    [2026, 4, 21],
+    [2026, 4, 22],
+    [2026, 4, 23],
+    [2026, 4, 24],
+    [2026, 4, 25],
+    [2026, 5, 25],
+  ],
+};
+</script>
+<!-- ════════════════════════════════════════════════════════════ -->
+
+<div class="page" id="app">
+  <div class="loading">Loading…</div>
+</div>
+
+<div class="modal-overlay" id="signup-modal">
+  <div class="modal">
+    <h2>Sign up to bring a meal</h2>
+    <p class="modal-sub" id="modal-date-label"></p>
+    <div class="form-group">
+      <label>Your name *</label>
+      <input type="text" id="f-name" placeholder="e.g. Zohran Mamdani" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="f-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Cell *</label>
+        <input type="tel" id="f-cell" placeholder="(917) 555-0100" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>What are you bringing? *</label>
+      <input type="text" id="f-meal" placeholder="e.g. Bananas Foster" />
+    </div>
+    <div class="form-group">
+      <label>Note (optional)</label>
+      <textarea id="f-note" placeholder="Drop-off time, a single meal or a large vat of generosity, etc."></textarea>
+    </div>
+    <p class="error-msg" id="signup-error">Please fill in all required fields.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('signup-modal')">Cancel</button>
+      <button class="btn btn-primary" id="signup-submit-btn" onclick="submitSignup()">Sign me up</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="admin-modal">
+  <div class="modal">
+    <h2>Admin login</h2>
+    <p class="modal-sub">Enter the admin password to manage slots.</p>
+    <div class="form-group">
+      <input type="password" id="admin-pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkAdminPw()" />
+    </div>
+    <p class="error-msg" id="admin-pw-error">Incorrect password.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('admin-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="checkAdminPw()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+const DAY_NAMES  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON_NAMES  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let state = { slots: [], signups: [] };
+let isAdmin = false;
+let activeSlotKey = null;
+
+// Derive slot list from config (stable keys)
+const SLOT_DEFS = CONFIG.SLOTS_CONFIG.map(([y, m, d]) => {
+  const dt = new Date(y, m, d);
+  return {
+    key: `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,
+    date: dt,
+    dayName: DAY_NAMES[dt.getDay()],
+    dayNum: d,
+    mon: MON_NAMES[m],
+  };
+});
+
+// ── JSONBIN API ────────────────────────────────────────────────
+const BIN_URL = `https://api.jsonbin.io/v3/b/${CONFIG.JSONBIN_BIN_ID}`;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Master-Key': CONFIG.JSONBIN_API_KEY,
+};
+
+async function loadState() {
+  try {
+    const res = await fetch(`${BIN_URL}/latest`, { headers: HEADERS });
+    const data = await res.json();
+    state = data.record || { slots: [], signups: [] };
+    if (!state.slots)   state.slots   = [];
+    if (!state.signups) state.signups = [];
+  } catch(e) {
+    console.error('Load error', e);
+    state = { slots: [], signups: [] };
+  }
+}
+
+async function saveState() {
+  await fetch(BIN_URL, {
+    method: 'PUT',
+    headers: HEADERS,
+    body: JSON.stringify(state),
+  });
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function slotRecord(key) {
+  return state.slots.find(s => s.key === key) || null;
+}
+
+function signupForSlot(key) {
+  return state.signups.find(s => s.slotKey === key) || null;
+}
+
+function isClosed(key) {
+  const r = slotRecord(key);
+  return r && r.closed;
+}
+
+function isClaimed(key) {
+  return !!signupForSlot(key);
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  // Nav row
+  const nav = document.createElement('div');
+  nav.className = 'admin-nav';
+  if (!isAdmin) {
+    nav.innerHTML = `<button class="btn btn-sm" onclick="openAdminLogin()">Admin</button>`;
+  } else {
+    nav.innerHTML = `<button class="btn btn-sm btn-danger" onclick="exitAdmin()">Exit admin</button>`;
+  }
+  app.appendChild(nav);
+
+  if (isAdmin) {
+    const bar = document.createElement('div');
+    bar.className = 'admin-bar';
+    bar.innerHTML = `<span>Admin mode — you can close or reopen dates, and see all signups.</span>`;
+    app.appendChild(bar);
+  }
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'header';
+  header.innerHTML = `
+    <span class="header-icon">🍲</span>
+    <h1>Meal Train for ${CONFIG.FAMILY_NAME}</h1>
+    <p>${CONFIG.TAGLINE}</p>
+  `;
+  app.appendChild(header);
+
+  // Slots
+  const sLabel = document.createElement('div');
+  sLabel.className = 'section-label';
+  sLabel.textContent = 'Open dates';
+  app.appendChild(sLabel);
+
+  const slotList = document.createElement('div');
+  slotList.className = 'slots';
+
+  SLOT_DEFS.forEach(def => {
+    const closed  = isClosed(def.key);
+    const claimed = isClaimed(def.key);
+    const signup  = signupForSlot(def.key);
+
+    const card = document.createElement('div');
+    card.className = 'slot-card' + (claimed ? ' is-claimed' : '') + (closed ? ' is-closed' : '');
+
+    let actionHtml = '';
+    if (isAdmin) {
+      if (closed) {
+        actionHtml = `<button class="btn btn-sm" onclick="toggleClose('${def.key}', false)">Reopen</button>`;
+      } else if (claimed) {
+        actionHtml = `<button class="btn btn-sm btn-danger" onclick="adminUnclaim('${def.key}')">Remove</button>`;
+      } else {
+        actionHtml = `<button class="btn btn-sm btn-danger" onclick="toggleClose('${def.key}', true)">Close</button>`;
+      }
+    } else {
+      if (closed) {
+        actionHtml = `<span class="badge badge-closed">Closed</span>`;
+      } else if (claimed) {
+        actionHtml = `<span class="badge badge-claimed">Taken</span>`;
+      } else {
+        actionHtml = `<button class="btn btn-sm" onclick="openSignup('${def.key}')">Sign up</button>`;
+      }
+    }
+
+    let bodyHtml = `<div class="slot-day">${def.dayName}</div>`;
+    if (claimed && signup) {
+      bodyHtml += `<div class="slot-meal">${escHtml(signup.meal)}</div>`;
+      bodyHtml += `<div class="slot-by">by ${escHtml(signup.name)}`;
+      if (isAdmin) bodyHtml += ` &middot; ${escHtml(signup.email)} &middot; ${escHtml(signup.cell)}`;
+      bodyHtml += `</div>`;
+      if (isAdmin && signup.note) bodyHtml += `<div class="slot-by" style="font-style:normal;margin-top:2px;font-size:12px;color:var(--ink-faint)">Note: ${escHtml(signup.note)}</div>`;
+    } else if (closed) {
+      bodyHtml += `<div class="slot-meal" style="color:var(--ink-faint);font-weight:400;">Not available</div>`;
+    } else {
+      bodyHtml += `<div class="slot-meal" style="color:var(--ink-muted);font-weight:400;">Open</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="slot-date">
+        <div class="num">${def.dayNum}</div>
+        <div class="mon">${def.mon}</div>
+      </div>
+      <div class="slot-vline"></div>
+      <div class="slot-body">${bodyHtml}</div>
+      <div class="slot-action">${actionHtml}</div>
+    `;
+    slotList.appendChild(card);
+  });
+
+  app.appendChild(slotList);
+
+  // Admin: signups table
+  if (isAdmin) {
+    const claimed = state.signups.filter(s => SLOT_DEFS.find(d => d.key === s.slotKey));
+    if (claimed.length > 0) {
+      const tLabel = document.createElement('div');
+      tLabel.className = 'section-label';
+      tLabel.textContent = 'All signups';
+      app.appendChild(tLabel);
+
+      const tableWrap = document.createElement('div');
+      tableWrap.style.cssText = 'background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;';
+
+      const sorted = [...claimed].sort((a, b) => a.slotKey.localeCompare(b.slotKey));
+      let rows = sorted.map(s => {
+        const def = SLOT_DEFS.find(d => d.key === s.slotKey);
+        const dateStr = def ? `${def.dayName}, ${def.mon} ${def.dayNum}` : s.slotKey;
+        return `<tr>
+          <td>${dateStr}</td>
+          <td>${escHtml(s.name)}</td>
+          <td class="muted">${escHtml(s.meal)}</td>
+          <td class="muted">${escHtml(s.email)}<br>${escHtml(s.cell)}</td>
+        </tr>`;
+      }).join('');
+
+      tableWrap.innerHTML = `<table class="admin-table">
+        <thead><tr><th>Date</th><th>Name</th><th>Meal</th><th>Contact</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+      app.appendChild(tableWrap);
+    }
+  }
+}
+
+
+// ── EMAIL NOTIFICATION ────────────────────────────────────────
+async function sendNotification(signup, slotKey) {
+  if (!CONFIG.EMAILJS_SERVICE_ID || !CONFIG.EMAILJS_PUBLIC_KEY) return;
+  try {
+    const def = SLOT_DEFS.find(d => d.key === slotKey);
+    const dateStr = def ? def.dayName + ', ' + def.mon + ' ' + def.dayNum : slotKey;
+    emailjs.init({ publicKey: CONFIG.EMAILJS_PUBLIC_KEY });
+    await emailjs.send(CONFIG.EMAILJS_SERVICE_ID, CONFIG.EMAILJS_TEMPLATE_ID, {
+      to_email:    CONFIG.NOTIFY_EMAIL,
+      signup_name:  signup.name,
+      signup_date:  dateStr,
+      signup_meal:  signup.meal,
+      signup_email: signup.email,
+      signup_cell:  signup.cell,
+      signup_note:  signup.note || '(none)',
+    });
+  } catch(e) {
+    console.warn('EmailJS notification failed:', e);
+  }
+}
+
+// ── SIGNUP ────────────────────────────────────────────────────
+function openSignup(key) {
+  activeSlotKey = key;
+  const def = SLOT_DEFS.find(d => d.key === key);
+  document.getElementById('modal-date-label').textContent =
+    def ? `${def.dayName}, ${def.mon} ${def.dayNum}` : key;
+  ['f-name','f-email','f-cell','f-meal','f-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('signup-error').style.display = 'none';
+  openModal('signup-modal');
+  setTimeout(() => document.getElementById('f-name').focus(), 80);
+}
+
+async function submitSignup() {
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const cell  = document.getElementById('f-cell').value.trim();
+  const meal  = document.getElementById('f-meal').value.trim();
+  const note  = document.getElementById('f-note').value.trim();
+
+  if (!name || !email || !cell || !meal) {
+    document.getElementById('signup-error').style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('signup-submit-btn');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  // Re-fetch to avoid conflicts
+  await loadState();
+
+  if (isClaimed(activeSlotKey) || isClosed(activeSlotKey)) {
+    closeModal('signup-modal');
+    render();
+    showToast('Sorry, that date was just taken or closed.');
+    btn.textContent = 'Sign me up'; btn.disabled = false;
+    return;
+  }
+
+  const newSignup = { slotKey: activeSlotKey, name, email, cell, meal, note, ts: Date.now() };
+  state.signups.push(newSignup);
+  await saveState();
+  sendNotification(newSignup, activeSlotKey);  // fire-and-forget
+  closeModal('signup-modal');
+  render();
+  showToast('You\'re signed up! Thank you so much.');
+  btn.textContent = 'Sign me up'; btn.disabled = false;
+}
+
+// ── ADMIN ACTIONS ─────────────────────────────────────────────
+function openAdminLogin() {
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-pw-error').style.display = 'none';
+  openModal('admin-modal');
+  setTimeout(() => document.getElementById('admin-pw-input').focus(), 80);
+}
+
+function checkAdminPw() {
+  const pw = document.getElementById('admin-pw-input').value;
+  if (pw === CONFIG.ADMIN_PASSWORD) {
+    isAdmin = true;
+    closeModal('admin-modal');
+    render();
+  } else {
+    document.getElementById('admin-pw-error').style.display = 'block';
+  }
+}
+
+function exitAdmin() {
+  isAdmin = false;
+  render();
+}
+
+async function toggleClose(key, close) {
+  let rec = state.slots.find(s => s.key === key);
+  if (!rec) { rec = { key }; state.slots.push(rec); }
+  rec.closed = close;
+  await saveState();
+  render();
+  showToast(close ? 'Date closed.' : 'Date reopened.');
+}
+
+async function adminUnclaim(key) {
+  if (!confirm('Remove this signup?')) return;
+  state.signups = state.signups.filter(s => s.slotKey !== key);
+  await saveState();
+  render();
+  showToast('Signup removed.');
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ── TOAST ─────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── UTIL ──────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+(async () => {
+  if (CONFIG.JSONBIN_BIN_ID === 'YOUR_BIN_ID_HERE') {
+    document.getElementById('app').innerHTML = `
+      <div style="text-align:center;padding:3rem 1rem;color:#8b2e22;">
+        <p style="font-family:Lora,serif;font-size:20px;margin-bottom:0.5rem;">Setup required</p>
+        <p style="font-size:14px;">Please edit the CONFIG block at the top of this file with your JSONbin credentials and admin password, then re-open the file.</p>
+      </div>`;
+    return;
+  }
+  await loadState();
+  render();
+})();
+</script>
+</body>
+</html>
